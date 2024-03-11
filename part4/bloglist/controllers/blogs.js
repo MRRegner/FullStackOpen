@@ -10,6 +10,13 @@ blogsRouter.get('/', async (request, response) => {
   response.json(blogs)
 })
 
+blogsRouter.get('/:id', async (request, response) => {
+  const blogs = await Blog
+    .findById(request.params.id)
+    .populate('user', { username: 1, name: 1 })
+  response.json(blogs)
+})
+
 blogsRouter.post('/', userExtractor,async (request, response) => {
   const body = request.body
   const token = request.token
@@ -37,32 +44,34 @@ blogsRouter.post('/', userExtractor,async (request, response) => {
 
 blogsRouter.put('/:id', async (request, response) => {
   const body = request.body
+ 
 
   const blog = {
     title: body.title,
     author: body.author,
     url: body.url,
-    likes: body.likes || 0
+    likes: body.likes || 0,
+    user: body.user
   }
   if (!blog.title && !blog.url) {
     response.status(400).end()
-  } else {
-    await Blog.findByIdAndUpdate(request.params.id, blog, { new: true })
-      .then(updatedBlog => {
-        response.json(updatedBlog)
-      })
+  } else{
+      const updatedBlog = await Blog.findByIdAndUpdate(request.params.id, blog, { new: true })
 
-  }
+      response.json(updatedBlog)
+    }  
 })
 
 blogsRouter.delete('/:id', userExtractor, async (request, response) => {
 
-  const decodedToken = jwt.verify(request.token, process.env.SECRET)
+  const id = request.params.id
+  const token = request.token
   const user = request.user
-  const blog = await Blog.findById(request.params.id)
+  const blog = await Blog
+  .findById(id)
 
   if (blog.user.toString() === user._id.toString()) {
-    await Blog.findByIdAndRemove(request.params.id)
+    await Blog.findByIdAndRemove(id)
     response.status(204).end()
   } else {
     return response.status(401).json({ error: 'Invalid token' })
